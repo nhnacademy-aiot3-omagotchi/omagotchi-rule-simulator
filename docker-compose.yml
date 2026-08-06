@@ -1,0 +1,7 @@
+# 검증용 로컬 브로커 - 엔진 .env를 tcp://localhost:1883 로 바꿔서 연결한다
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    command: mosquitto -c /mosquitto-no-auth.conf
+    ports:
+      - "1883:1883"

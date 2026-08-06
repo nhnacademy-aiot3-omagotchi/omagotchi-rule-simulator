@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: rule-simulator
+
+simulator:
+  broker-url: tcp://localhost:1883
+  application-id: sim-application
+  sensors:
+    - dev-eui: "sim-0001"
+      location: "실습실"
+      point: "전방"
+      measurement: "temperature"
+      base-value: 25.0
+      jitter: 0.5
+      period-seconds: 10
+    - dev-eui: "sim-0002"
+      location: "회의실"
+      point:                      # point 없는 센서 재현 (엔진의 null 허용 경로 검증)
+      measurement: "co2"
+      base-value: 600.0
+      jitter: 30.0
+      period-seconds: 10
