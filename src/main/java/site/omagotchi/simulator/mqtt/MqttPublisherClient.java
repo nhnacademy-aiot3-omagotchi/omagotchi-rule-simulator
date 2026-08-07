@@ -39,14 +39,16 @@ public class MqttPublisherClient {
         log.info("[MqttPublisherClient] 브로커 연결 완료: {}", simulatorProperties.brokerUrl());
     }
 
-    public void publish(String topic, String payload){
+    public boolean publish(String topic, String payload){
         try {
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(1);          //핸드셰이크
 
             mqttClient.publish(topic,message);
+            return true;
         } catch (MqttException e) {
             log.error("[MqttPublisherClient] 발행 실패: topic={}", topic, e);
+            return false;
         }
     }
 

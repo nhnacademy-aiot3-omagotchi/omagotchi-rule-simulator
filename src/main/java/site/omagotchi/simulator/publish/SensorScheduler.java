@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import site.omagotchi.simulator.config.SimulatorProperties;
 import site.omagotchi.simulator.config.SimulatorProperties.SimSensor;
 import site.omagotchi.simulator.frame.ChirpStackFrameBuilder;
+import site.omagotchi.simulator.ledger.Ledger;
 import site.omagotchi.simulator.mqtt.MqttPublisherClient;
 
 import java.util.Random;
@@ -24,12 +25,14 @@ public class SensorScheduler {
     private final ChirpStackFrameBuilder frameBuilder;
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     private final Random random = new Random();
+    private final Ledger ledger;
 
     public SensorScheduler(SimulatorProperties properties, MqttPublisherClient mqttPublisherClient,
-                           ChirpStackFrameBuilder frameBuilder) {
+                           ChirpStackFrameBuilder frameBuilder, Ledger ledger) {
         this.properties = properties;
         this.mqttPublisherClient = mqttPublisherClient;
         this.frameBuilder = frameBuilder;
+        this.ledger = ledger;
     }
 
     @PostConstruct
@@ -56,7 +59,11 @@ public class SensorScheduler {
         String topic = "application/" + properties.applicationId() + "/device/" + sensor.devEui() + "/event/up";
         String payload = frameBuilder.build(sensor, currentFcnt, value);
 
-        mqttPublisherClient.publish(topic, payload);
+//        mqttPublisherClient.publish(topic, payload);
+        boolean success = mqttPublisherClient.publish(topic, payload);
+        if (success) {
+            ledger.recordPublish(sensor.devEui(), sensor.measurement());
+        }
         log.info("[발행] {} fCnt={} {}={}", sensor.devEui(), currentFcnt, sensor.measurement(),
                 String.format("%.2f", value));
     }
