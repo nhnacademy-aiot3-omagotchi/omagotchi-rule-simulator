@@ -13,10 +13,31 @@ simulator:
       base-value: 25.0
       jitter: 0.5
       period-seconds: 10
+      faults:
+        - type: ANOMALY
+          from-tick: 5
+          count: 3                  # 차례 5~7: 이상치 3건 → [범위초과] 3건 기대
+        - type: DUPLICATE
+          from-tick: 10
+          count: 2                  # 차례 10~11: 중복 2건 → [중복] 2건 기대
+        - type: DELAYED
+          from-tick: 14
+          count: 2                  # 차례 14~15: 지연 2건 → [지연] 2건 기대
+        - type: MISSING
+          from-tick: 18
+          count: 2                  # 차례 18~19: 결측 2건 → [결측] 2건 기대
     - dev-eui: "sim-0002"
       location: "회의실"
-      point:                      # point 없는 센서 재현 (엔진의 null 허용 경로 검증)
+      point:                        # point 없는 센서 재현
       measurement: "co2"
       base-value: 600.0
       jitter: 30.0
       period-seconds: 10
+      faults:
+        - type: DISCONNECT
+          from-tick: 5
+          count: 5                  # 차례 5~9: 약 50초 침묵 (임계 10초×3=30초 초과)
+                                    # → [끊김 시작] 1 + 재개 후 [끊김 종료] 1 기대
+
+# 무변동(STUCK)은 30분 넘게 지속해야 검출되므로 단기 시나리오에서 제외.
+# 장기 검증 때: - type: STUCK / from-tick: 30 / count: 200  (약 33분)

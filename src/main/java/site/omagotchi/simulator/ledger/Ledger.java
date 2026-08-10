@@ -18,11 +18,18 @@ import java.util.concurrent.atomic.AtomicLong;
 public class Ledger {
 
     private final Map<String, AtomicLong> counts = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> faultCounts = new ConcurrentHashMap<>();
 
     //센서+측정항목 당 발행에 몇번 성공했는가?
     public void recordPublish(String device, String measurement) {
         String key = device +":"+ measurement;
         counts.computeIfAbsent(key, k -> new AtomicLong()).incrementAndGet();
+    }
+
+    //센서 당 불량 주입을 몇번 했는가?
+    public void recordFault(String device, String faultLabel) {
+        String key = device + ":" + faultLabel;
+        faultCounts.computeIfAbsent(key, k -> new AtomicLong()).incrementAndGet();
     }
 
     @PreDestroy
@@ -35,6 +42,13 @@ public class Ledger {
             log.info("  {} : {}건", entry.getKey(), count);
         }
         log.info("  합계: {}건", total);
+        log.info("---------- 주입 장부 (기대 신고 수) ----------");
+        if (faultCounts.isEmpty()) {
+            log.info("  (주입 없음)");
+        }
+        for (Map.Entry<String, AtomicLong> entry : new TreeMap<>(faultCounts).entrySet()) {
+            log.info("  {} : {}건", entry.getKey(), entry.getValue().get());
+        }
         log.info("=============================================");
     }
 }

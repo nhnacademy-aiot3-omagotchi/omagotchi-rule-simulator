@@ -17,12 +17,12 @@ public class ChirpStackFrameBuilder {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String build(SimulatorProperties.SimSensor sensor, long fCnt, double value) {
+    public String build(SimulatorProperties.SimSensor sensor, long fCnt, double value, Instant measuredTime) {
 
         ObjectNode root = objectMapper.createObjectNode();
         root.put("deduplicationId", UUID.randomUUID().toString());
-        String nowIso = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-        root.put("time", nowIso);
+        String timeIso = DateTimeFormatter.ISO_INSTANT.format(measuredTime);
+        root.put("time", timeIso);
 
         ObjectNode deviceInfo = root.putObject("deviceInfo");
         deviceInfo.put("deviceProfileName", "sim-profile");
@@ -44,7 +44,7 @@ public class ChirpStackFrameBuilder {
         ArrayNode rxInfoArray = root.putArray("rxInfo");
         ObjectNode rxInfo = rxInfoArray.addObject();
         rxInfo.put("gatewayId", "sim-gateway");
-        rxInfo.put("nsTime", nowIso);
+        rxInfo.put("nsTime", timeIso);
 
         return root.toString();
     }
