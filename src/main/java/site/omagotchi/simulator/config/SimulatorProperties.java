@@ -7,8 +7,9 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "simulator")
 public record SimulatorProperties(
-        String brokerUrl,           //yaml의 단일 값
-        String applicationId,       //yaml의 단일 값
+        String brokerUrl,
+        String applicationId,
+        Integer publisherThreads,   //부하 테스트용
         List<SimSensor> sensors
 ) {
     public record SimSensor(
@@ -18,8 +19,9 @@ public record SimulatorProperties(
             String measurement,
             double baseValue,       // 이 값 근처에서 흔들리는 그럴듯한 값 생성
             double jitter,          // 흔들림 폭
-            int periodSeconds,      // 발행 주기 (실제로는 ±10% 흔들어 발행)
-            List<Fault> faults      // 불량 주입 구간 목록
+            double periodSeconds,      // 발행 주기
+            List<Fault> faults,      // 불량 주입 구간 목록
+            Integer count           // 센서 대수 (부하 테스트용)
     ) {}
 
     public record Fault(

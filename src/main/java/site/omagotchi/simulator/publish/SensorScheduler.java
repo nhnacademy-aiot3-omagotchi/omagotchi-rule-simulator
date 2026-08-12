@@ -12,6 +12,8 @@ import site.omagotchi.simulator.ledger.Ledger;
 import site.omagotchi.simulator.mqtt.MqttPublisherClient;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,11 +27,12 @@ public class SensorScheduler {
     private final SimulatorProperties properties;
     private final MqttPublisherClient mqttPublisherClient;
     private final ChirpStackFrameBuilder frameBuilder;
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+    private final ScheduledExecutorService executor;
     private final Random random = new Random();
     private final Ledger ledger;
     /** 지연 주입 폭: 측정 시각을 5분 과거로 */
     private static final long DELAY_SECONDS = 300;
+    private static final int DEFAULT_PUBLISHER_THREADS = 4;
 
     public SensorScheduler(SimulatorProperties properties, MqttPublisherClient mqttPublisherClient,
                            ChirpStackFrameBuilder frameBuilder, Ledger ledger) {
@@ -37,16 +40,35 @@ public class SensorScheduler {
         this.mqttPublisherClient = mqttPublisherClient;
         this.frameBuilder = frameBuilder;
         this.ledger = ledger;
+        this.executor = Executors.newScheduledThreadPool(
+                properties.publisherThreads() != null ? properties.publisherThreads() : DEFAULT_PUBLISHER_THREADS);
     }
 
     @PostConstruct
     void start() {
         for (SimSensor sensor : properties.sensors()) {
-            AtomicLong fCnt = new AtomicLong(0);            //실제 발행
-            AtomicLong tick = new AtomicLong(0);            //건너뛴 것까지 표시
-            publish(sensor, tick, fCnt);
-            scheduleNext(sensor,tick ,fCnt);
+            for (SimSensor instance : expand(sensor)) {
+                AtomicLong fCnt = new AtomicLong(0);            //실제 발행
+                AtomicLong tick = new AtomicLong(0);            //건너뛴 것까지 표시
+                publish(instance, tick, fCnt);
+                scheduleNext(instance, tick, fCnt);
+            }
         }
+    }
+
+    private List<SimSensor> expand(SimSensor sensor) {
+        if (sensor.count() == null || sensor.count() <= 1) {
+            return List.of(sensor);
+        }
+        List<SimSensor> instances = new ArrayList<>(sensor.count());
+        for (int i = 1; i <= sensor.count(); i++) {
+            instances.add(new SimSensor(
+                    sensor.devEui() + "-" + String.format("%03d", i),
+                    sensor.location(), sensor.point(), sensor.measurement(),
+                    sensor.baseValue(), sensor.jitter(), sensor.periodSeconds(),
+                    sensor.faults(), null));
+        }
+        return instances;
     }
 
     private void scheduleNext(SimSensor sensor, AtomicLong tick, AtomicLong fCnt) {
@@ -137,7 +159,7 @@ public class SensorScheduler {
         return null;
     }
 
-    private long jitteredDelayMillis(int periodSeconds) {
+    private long jitteredDelayMillis(double periodSeconds) {
         double jitterRatio = 0.9 + random.nextDouble() * 0.2;   // 0.9~1.1
         return Math.round(periodSeconds * 1000 * jitterRatio);
     }

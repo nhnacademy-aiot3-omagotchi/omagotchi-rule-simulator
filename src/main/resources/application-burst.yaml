@@ -1,0 +1,10 @@
+simulator:
+  publisher-threads: 16
+  sensors:
+    - dev-eui: "sim-burst"
+      location: "부하시험장"
+      measurement: "temperature"
+      base-value: 25.0
+      jitter: 0.5
+      period-seconds: 0.1
+      count: 50
