@@ -21,7 +21,7 @@ duplicate=$(count '\[중복\] sim-0001:')
 delayed=$(count '\[지연\] sim-0001:')
 
 missing_single=$(count '\[결측\] sim-0001 fCnt [0-9]+ 누락$')
-missing_batch=$(sed -n -E 's/.*\(([0-9]+)건 일괄\).*/\1/p' "$LOG" | awk '{s+=$1} END{print s+0}')
+missing_batch=$(sed -n -E 's/.*\[결측\] sim-0001 fCnt [0-9]+~[0-9]+ 누락 \(([0-9]+)건 일괄\).*/\1/p' "$LOG" | awk '{s+=$1} END{print s+0}')
 missing=$((missing_single + missing_batch))
 
 disc_start=$(count '\[끊김 시작\] sim-0002:')
