@@ -33,6 +33,7 @@ public class SensorScheduler {
     /** 지연 주입 폭: 측정 시각을 5분 과거로 */
     private static final long DELAY_SECONDS = 300;
     private static final int DEFAULT_PUBLISHER_THREADS = 4;
+    private static final double ANOMALY_OFFSET = 1_000_000;
 
     public SensorScheduler(SimulatorProperties properties, MqttPublisherClient mqttPublisherClient,
                            ChirpStackFrameBuilder frameBuilder, Ledger ledger) {
@@ -48,10 +49,10 @@ public class SensorScheduler {
     void start() {
         for (SimSensor sensor : properties.sensors()) {
             for (SimSensor instance : expand(sensor)) {
-                AtomicLong fCnt = new AtomicLong(0);            //실제 발행
-                AtomicLong tick = new AtomicLong(0);            //건너뛴 것까지 표시
-                publish(instance, tick, fCnt);
-                scheduleNext(instance, tick, fCnt);
+                AtomicLong fCnt = new AtomicLong(0);
+                AtomicLong tick = new AtomicLong(0);
+                long offsetMillis = (long) (random.nextDouble() * instance.periodSeconds() * 1000);
+                scheduleAt(instance, tick, fCnt, offsetMillis);
             }
         }
     }
@@ -72,10 +73,19 @@ public class SensorScheduler {
     }
 
     private void scheduleNext(SimSensor sensor, AtomicLong tick, AtomicLong fCnt) {
-        long delayMillis = jitteredDelayMillis(sensor.periodSeconds());
+        scheduleAt(sensor, tick, fCnt, jitteredDelayMillis(sensor.periodSeconds()));
+    }
+
+    /** 예외가 나도 재예약은 반드시 되도록 try/finally로 감싼다 - 안 그러면 그 센서는 조용히 영구 정지한다 */
+    private void scheduleAt(SimSensor sensor, AtomicLong tick, AtomicLong fCnt, long delayMillis) {
         executor.schedule(() -> {
-            publish(sensor, tick, fCnt);
-            scheduleNext(sensor, tick, fCnt);   // 스스로를 다시 예약 (자기재귀 스케줄링)
+            try {
+                publish(sensor, tick, fCnt);
+            } catch (Exception e) {
+                log.error("[발행 실패] {} 차례 {} - 계속 진행", sensor.devEui(), tick.get(), e);
+            } finally {
+                scheduleNext(sensor, tick, fCnt);
+            }
         }, delayMillis, TimeUnit.MILLISECONDS);
     }
 
@@ -103,7 +113,7 @@ public class SensorScheduler {
         // 값 결정
         double value;
         if (faultType == FaultType.ANOMALY) {
-            value = sensor.baseValue() * 100;               // 물리 범위 확실히 밖
+            value = sensor.baseValue() + ANOMALY_OFFSET;    // 곱셈 대신 덧셈 - baseValue가 0/음수여도 항상 범위 밖
         } else if (faultType == FaultType.STUCK) {
             value = sensor.baseValue();                      // 흔들림 없이 고정
         } else {
@@ -135,12 +145,13 @@ public class SensorScheduler {
                 // 중복: 같은 프레임(같은 fCnt·payload)을 그대로 한 번 더 발행
                 boolean dupSuccess = mqttPublisherClient.publish(topic, payload);
                 if (dupSuccess) {
+                    ledger.recordPublish(sensor.devEui(), sensor.measurement());   // 브로커로 나간 실제 건수에 반영
                     ledger.recordFault(sensor.devEui(), "DUPLICATE");
                 }
             }
         }
 
-        log.info("[발행] {} 차례={} fCnt={} {}={}{}",
+        log.debug("[발행] {} 차례={} fCnt={} {}={}{}",
                 sensor.devEui(), currentTick, currentFcnt, sensor.measurement(),
                 String.format("%.2f", value),
                 faultType != null ? " [주입:" + faultType + "]" : "");

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import site.omagotchi.simulator.config.SimulatorProperties;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** 브로커 연결·발행 */
 @Slf4j
@@ -21,6 +22,8 @@ public class MqttPublisherClient {
 
     private final SimulatorProperties simulatorProperties;
     private MqttClient mqttClient;              //동기
+    private final AtomicLong failureCount = new AtomicLong();
+    private static final int LOG_EVERY_N_FAILURES = 50;
 
     public MqttPublisherClient(SimulatorProperties simulatorProperties) {
         this.simulatorProperties = simulatorProperties;
@@ -47,7 +50,10 @@ public class MqttPublisherClient {
             mqttClient.publish(topic,message);
             return true;
         } catch (MqttException e) {
-            log.error("[MqttPublisherClient] 발행 실패: topic={}", topic, e);
+            long count = failureCount.incrementAndGet();
+            if (count % LOG_EVERY_N_FAILURES == 1) {
+                log.error("[MqttPublisherClient] 발행 실패 (누적 {}건째): topic={}", count, topic, e);
+            }
             return false;
         }
     }

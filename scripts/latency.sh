@@ -5,6 +5,9 @@
 # "발행 → InfluxDB에서 조회 가능"까지 걸린 시간을 측정합니다.
 
 set -euo pipefail
+for cmd in mosquitto_pub python3 curl; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "'$cmd' 명령을 찾을 수 없습니다. 설치 후 다시 실행하세요." >&2; exit 1; }
+done
 
 ROUNDS="${1:-100}"
 
@@ -48,12 +51,25 @@ EOF
     found="no"
     poll_count=0
     while [ "$poll_count" -lt "$max_polls" ]; do
-        response=$(curl -s -XPOST "${INFLUX_URL}/api/v2/query?org=${INFLUX_ORG}" \
+        response_and_code=$(curl -s -w '\n%{http_code}' -XPOST "${INFLUX_URL}/api/v2/query?org=${INFLUX_ORG}" \
             -H "Authorization: Token ${INFLUX_TOKEN}" \
             -H "Content-Type: application/vnd.flux" \
             -H "Accept: application/csv" \
             --data-raw "$flux_query")
-        asdasdasdsnsdd
+
+        http_code=$(echo "$response_and_code" | tail -n 1)
+        response=$(echo "$response_and_code" | sed '$d')
+
+        if [ "$http_code" = "000" ]; then
+            echo "InfluxDB에 연결할 수 없습니다 - INFLUX_URL 값과 InfluxDB가 떠 있는지 확인하세요" >&2
+            exit 1
+        fi
+        if [ "$http_code" -ge 400 ]; then
+            echo "InfluxDB 요청 실패 (HTTP $http_code) - INFLUX_TOKEN/INFLUX_ORG 값을 확인하세요" >&2
+            echo "응답: $response" >&2
+            exit 1
+        fi
+
         data_lines=$(echo "$response" | grep -v '^#' | tail -n +2 | grep -c '.' || true)
 
         if [ "$data_lines" -gt 0 ]; then
