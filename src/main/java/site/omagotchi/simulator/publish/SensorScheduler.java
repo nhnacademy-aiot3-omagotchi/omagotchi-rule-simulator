@@ -57,7 +57,7 @@ public class SensorScheduler {
         }
     }
 
-    private List<SimSensor> expand(SimSensor sensor) {
+    List<SimSensor> expand(SimSensor sensor) {
         if (sensor.count() == null || sensor.count() <= 1) {
             return List.of(sensor);
         }
@@ -89,7 +89,7 @@ public class SensorScheduler {
         }, delayMillis, TimeUnit.MILLISECONDS);
     }
 
-    private void publish(SimSensor sensor, AtomicLong tick, AtomicLong fCnt) {
+    void publish(SimSensor sensor, AtomicLong tick, AtomicLong fCnt) {
         long currentTick = tick.getAndIncrement();
         SimulatorProperties.Fault fault = activeFault(sensor, currentTick);
         FaultType faultType = fault != null ? fault.type() : null;

@@ -64,4 +64,13 @@ public class MqttPublisherClient {
             mqttClient.disconnect();
         }
     }
+
+    /** 테스트에서 실제 브로커 연결 없이 mock MqttClient를 주입하기 위한 세터 */
+    void setMqttClient(MqttClient mqttClient) {
+        this.mqttClient = mqttClient;
+    }
+
+    long getFailureCount() {
+        return failureCount.get();
+    }
 }

@@ -51,4 +51,15 @@ public class Ledger {
         }
         log.info("=============================================");
     }
+
+    /* 테스트용 */
+    long getCount(String device, String measurement) {
+        AtomicLong count = counts.get(device + ":" + measurement);
+        return count == null ? 0 : count.get();
+    }
+
+    long getFaultCount(String device, String faultLabel) {
+        AtomicLong count = faultCounts.get(device + ":" + faultLabel);
+        return count == null ? 0 : count.get();
+    }
 }
